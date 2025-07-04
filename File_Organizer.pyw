@@ -2,6 +2,7 @@ import os
 import shutil
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
+import json
 
 class FileOrganizerApp:
     def __init__(self, root):
@@ -9,11 +10,36 @@ class FileOrganizerApp:
         self.root.title("文件整理工具")
         self.root.geometry("500x300")
         
+        # 配置文件路径
+        self.config_file = os.path.join(os.path.expanduser("~"), ".file_organizer_config.json")
+        
         # 变量
         self.folder_path = tk.StringVar()
         
+        # 加载上次的路径
+        self.load_config()
+        
         # 创建UI元素
         self.create_widgets()
+    
+    def load_config(self):
+        """加载配置文件"""
+        if os.path.exists(self.config_file):
+            try:
+                with open(self.config_file, "r") as f:
+                    config = json.load(f)
+                    self.folder_path.set(config.get("last_folder", ""))
+            except:
+                # 如果配置文件损坏，忽略错误
+                pass
+    
+    def save_config(self):
+        """保存配置到文件"""
+        config = {
+            "last_folder": self.folder_path.get()
+        }
+        with open(self.config_file, "w") as f:
+            json.dump(config, f)
     
     def create_widgets(self):
         # 标题
@@ -44,7 +70,7 @@ class FileOrganizerApp:
         organize_btn = tk.Button(btn_frame, text="整理文件", command=self.organize_files)
         organize_btn.pack(side=tk.LEFT, padx=10)
         
-        exit_btn = tk.Button(btn_frame, text="退出", command=self.root.quit)
+        exit_btn = tk.Button(btn_frame, text="退出", command=self.on_exit)
         exit_btn.pack(side=tk.LEFT, padx=10)
         
         # 状态标签
@@ -52,7 +78,7 @@ class FileOrganizerApp:
         self.status_label.pack()
     
     def browse_folder(self):
-        folder_selected = filedialog.askdirectory()
+        folder_selected = filedialog.askdirectory(initialdir=self.folder_path.get() or None)
         if folder_selected:
             self.folder_path.set(folder_selected)
     
@@ -100,6 +126,9 @@ class FileOrganizerApp:
                     self.status_label.config(text=f"正在处理: {file}")
                     self.root.update_idletasks()
             
+            # 保存当前路径
+            self.save_config()
+            
             self.status_label.config(text="文件整理完成!", fg="green")
             messagebox.showinfo("完成", f"共处理了 {processed} 个文件!")
             self.progress['value'] = 0
@@ -107,6 +136,11 @@ class FileOrganizerApp:
         except Exception as e:
             messagebox.showerror("错误", f"发生错误:\n{str(e)}")
             self.status_label.config(text="整理过程中出错!", fg="red")
+    
+    def on_exit(self):
+        """退出前保存配置"""
+        self.save_config()
+        self.root.quit()
 
 if __name__ == "__main__":
     root = tk.Tk()
